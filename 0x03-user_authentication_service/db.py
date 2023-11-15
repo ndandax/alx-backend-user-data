@@ -5,6 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
 from user import User
+from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm.exc import NoResultFound
 
 from user import Base
 
@@ -31,8 +33,39 @@ class DB:
         return self.__session
 
     def add_user(self, email: str, hashed_password: str) -> User:
-        """add_user method"""
+        """
+        Saves a user to the database
+        """
         user = User(email=email, hashed_password=hashed_password)
+
         self._session.add(user)
         self._session.commit()
+
         return user
+
+    def find_user_by(self, **kwargs) -> User:
+        """
+        returns the first row found in the users
+        """
+        try:
+            user = self._session.query(User).filter_by(**kwargs).first()
+        except TypeError:
+            InvalidRequestError
+
+        if not user:
+            raise NoResultFound
+        return user
+
+    def update_user(self, user_id: int, **kwargs) -> None:
+        """
+        updates the user
+        """
+        user = self.find_user_by(id=user_id)
+
+        for key, value in kwargs.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+            else:
+                raise ValueError
+
+        self._session.commit()
